@@ -1,49 +1,161 @@
 #include <kipr/wombat.h>
 
+//Def fix variabeln
+int Servo_Arm_1 = 0;	//Servo-Ports fuer den Arm
+int Servo_Arm_2 = 2;	//Servo-Ports fuer den Arm
+int Servo_Greifer = 1; 	//Servo-Port fuer den Greifer
+int Greifer_offen = 1600;
+int Greifer_zu = 1200;
+int Servo_pos_1 = 0;	//Position fuer Unten
+int Servo_pos_2 = 2047;	//Position fuer Unten
+int Change_Value = 1;	//Arm-Geschwindigkeit rauf runter
+int DIST = 0;
+int DIST_PVC = 2600;
+int LIGHT = 1;
+
+void Arm(int hoehe){
+    printf("Arm\n"); 
+    Servo_pos_1 = get_servo_position(Servo_Arm_1);
+    Servo_pos_2 = get_servo_position(Servo_Arm_2);
+    while(Servo_pos_2 < hoehe || Servo_pos_2 > hoehe){		//Max = 2047
+        set_servo_position(Servo_Arm_1,Servo_pos_1);
+        set_servo_position(Servo_Arm_2,Servo_pos_2);
+        if (Servo_pos_2 < hoehe) {
+        	Servo_pos_1 -= Change_Value;
+        	Servo_pos_2 += Change_Value;
+        	msleep(2.5);
+        }
+        if (Servo_pos_2 > hoehe) {
+           Servo_pos_1 += Change_Value;
+        	Servo_pos_2 -= Change_Value;
+        	msleep(2.5); 
+    	}
+	}
+}
+
+void Starteinstellungen(){
+    enable_servo(Servo_Arm_1);
+    enable_servo(Servo_Arm_2);
+    enable_servo(Servo_Greifer);
+    Arm(0);
+    set_servo_position(Servo_Greifer,Greifer_offen);
+    printf("Auf Licht warten...\n");
+    while(1){
+    	if(analog(LIGHT) < 300){
+        	break;
+        }
+    }
+    shut_down_in(117);
+}
+
 int main()
 {
-    int LIGHT = 0; // Variable für den Lichtsensor
-    int DIST = 1;  // Variable für den Abstandssensor
-    int BUTTON_1 = 0; // Variable für den ersten Button
-    int BUTTON_2 = 1; // Variable für den zweiten Button
-    int BOOL = 1; // Variable zur Steuerung der Schleife
-    int GRAP_DIST = 1500; // Variable für die Distanz, bei der der Greifer schließen soll
-    int GRAP_OPEN = 400; // Variable für die geöffnete Position des Greifers
-
-    enable_servo(0); // Den Greifer aktivieren
-    set_servo_position(0,GRAP_OPEN); // Den Greifer in die geöffnete Position bringen
-    printf("Auf Licht warten\n"); // Ausgabe: "Auf Licht warten"
+    //Hauptprogramm
+    Starteinstellungen();
+    printf("Start\n");
+    Arm(900);
+	//Robo aus der Box
+    motor(0,60);
+    motor(1,60);
+    msleep(4000);
+    //Linksdrift 45 Grad
+    motor(1,-40);
+    motor(0,40);
+   	msleep(800);
+    //Grade wieder
+    motor(1,40);
+    motor(0,40);
+    
+    //Smartes Ranfahren
+    printf("Smart Ranfahrn\n");
     while(1){
-        msleep(200); // Warten für 200 ms
-        if (analog(LIGHT) < 500){ // Wenn das Licht signal stark genug ist
-            break; // Die Schleife verlassen
+        if(analog(DIST) > 1500){
+            motor(0,0);
+            motor(1,0);
+            break;
         }
     }
-    shut_down_in(119); // Den Roboter nach 119 Sekunden herunterfahren
-
-    printf("Start\n"); // Ausgabe: "Start"
-    while(BOOL == 1){ // Solange BOOL gleich 1 ist
-        motor(0,50); // Den linken Motor mit 50% betreiben
-        motor(1,50); // Den rechten Motor mit 50% betreiben
-        if(analog(DIST) > 2900){ // Wenn ein Objekt erkannt wird
-            printf("Objekt erkannt!\n"); // Ausgabe: "Objekt erkannt!"
-            while(1){ // Solange kein Objekt erfasst ist
-                motor(0,20); // Den linken Motor mit 20% betreiben
-                motor(1,20); // Den rechten Motor mit 20% betreiben
-                if (analog(DIST) == GRAP_DIST){ // Wenn der Abstand zum Objekt gleich GRAP_DIST ist
-                    set_servo_position(0,0); // Den Greifer schließen
-                }
-                motor(0,-50); // Den linken Motor mit -50% betreiben
-                motor(1,-50); // Den rechten Motor mit -50% betreiben
-                if (digital(BUTTON_1)==1 && digital(BUTTON_2)==1){ // Wenn beide Buttons gedrückt werden
-                    printf("Ausgerichtet\n\n"); // Ausgabe: "Ausgerichtet"
-                    motor(0,0); // Den linken Motor stoppen
-                    motor(1,0); // Den rechten Motor stoppen
-                    BOOL = 0; // BOOL auf 0 setzen
-                    break; // Die Schleife verlassen
-                }  
-            }
+    
+    //Smarte Detection
+    printf("Detection\n");
+    motor(1,-20);
+    motor(0,20);
+    while(1){
+        if(analog(DIST) > 1600){
+            motor(1,15);
+            motor(0,-15);
+            break;
         }
     }
+    msleep(500);
+	while(1){
+        if(analog(DIST) > 1500){
+        	break;
+        }
+    }
+   
+    //Schublade?
+    printf("Schublade\n");
+    motor(0,20);
+    motor(1,20);
+    while(1){
+    	if(analog(DIST) > 2000){
+        motor(0,0);
+		motor(1,0);
+		break;
+        }
+    }
+    set_servo_position(Servo_Greifer,Greifer_zu);
+    msleep(600);
+    Arm(0);
+    motor(0,-40);
+    motor(1,-40);
+    msleep(600);
+    set_servo_position(Servo_Greifer,Greifer_offen);
+    msleep(2000);
+    motor(0,0);
+    motor(1,0);
+    
+    //bissl schiefer (rechts)
+	motor(0,-40);
+    msleep(700);
+    motor(0,0);
+    //Arm heben
+    Arm(1200);
+    //Grade wieder
+    motor(1,40);
+    motor(0,40);
+    msleep(2700);	//2100 + Schubladenziehzeit
+    //Stop
+    motor(0,0);
+    motor(1,0);
+    //Vorfahrn
+    motor(0,40);
+    motor(1,40);
+    msleep(600);
+    //bissl Links
+    motor(1,-40);
+    msleep(400);
+    motor(0,0);
+    motor(1,0);
+    //Hebel schalten
+    set_servo_position(Servo_Greifer,950);
+    Arm (1500);
+    //Zurueck in die Box
+    motor(0,-40);
+    motor(1,-40);
+    msleep(2000);
+    motor(1,40);
+    msleep(1000);
+    motor(1,-40);
+    msleep(8000);
+    motor(0,20);
+    motor(1,-20);
+    msleep(1000);
+    motor(0,0);
+    motor(1,0);
+    Arm(0);
+    
+    
     return 0;
 }
