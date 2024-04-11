@@ -10,7 +10,6 @@ int Servo_pos_1 = 0;	//Position fuer Unten
 int Servo_pos_2 = 2047;	//Position fuer Unten
 int Change_Value = 1;	//Arm-Geschwindigkeit rauf runter
 int DIST = 0;
-int DIST_PVC = 2600;
 int LIGHT = 1;
 
 void Arm(int hoehe){
